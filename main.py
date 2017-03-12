@@ -2,20 +2,7 @@ import bpy
 import threading
 import time
 import serial
-
-gvar = 2
-
-class CounterService(threading.Thread):
-
-
-    def run(self):
-        print('sdf')
-        while true:
-            gvar += 1
-            self._counter += 1
-            HelloWorldPanel.cnt += 1
-            time.sleep(1)
-
+import sys
 
 class HelloWorldPanel(bpy.types.Panel):
     bl_idname = "OBJECT_PT_hello_world"
@@ -31,31 +18,42 @@ class HelloWorldPanel(bpy.types.Panel):
     
     def __init__(self):
         self.cnt = 1
-        
-        thread = threading.Thread(target = HelloWorldPanel.inc, args = (self, ))
-        thread.start()
-        
+        print("test")
+                
         bpy.types.Panel.__init__(self)
 
     def draw(self, context):
         self.layout.label(text="Hello World {0}".format(self.cnt))
+        self.layout.operator("hello.hello", text='Ciao').country = "Italy"
 
 
-def register():
-    #service = CounterService()
-    #service.start()
+
+class OBJECT_OT_HelloButton(bpy.types.Operator):
+    bl_idname = "hello.hello"
+    bl_label = "Say Hello"
+    country = bpy.props.StringProperty()
+ 
+    def execute(self, context):
+        
+        
+        ser = serial.Serial(
+            port='/dev/tty.wchusbserialfd120',
+            baudrate=250000
+        )
+
+        print(ser.isOpen())
+
+        ser.write("G28\n".encode('utf-8'))
+        ser.close()
+#        ser.write_line("G28")
+        #print(ser.readstring())
+        
+        if self.country == '':
+            print("Hello world!")
+        else:
+            print("Hello world from %s!" % self.country)
+        return{'FINISHED'}
     
-    #HelloWorldPanel.service = service
-    bpy.utils.register_class(HelloWorldPanel)
-    
-    #gvar = 10
-
-def unregister():
-    service = CounterService(HelloWorldPanel)
-    service.srart()
-
-    bpy.utils.unregister_class(HelloWorldPanel)
-    
+        
 if __name__ == "__main__":
-    register()
-    #unregister()
+    bpy.utils.register_module(__name__)
