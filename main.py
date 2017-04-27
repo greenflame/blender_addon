@@ -11,7 +11,17 @@ class Config:
     baudrate = 250000
 
     slicer = '/Applications/Slic3r.app/Contents/MacOS/slic3r'
+    temp = '/Users/alexander/Desktop/'
 
+class HelloService:
+
+    def greet():
+        print('hello, world')
+
+class SlicerService:
+
+    def slice(context):
+        return context
 
 class PrinterService:
 
@@ -31,10 +41,7 @@ class PrinterService:
     def home():
         PrinterService.serial.write('G28\n'.encode('utf-8'))
 
-
-class SlicerService:
-    q = 1
-
+# Hello
 
 class HelloPanel(bpy.types.Panel):
     bl_idname = 'OBJECT_PT_hello_panel'
@@ -44,17 +51,39 @@ class HelloPanel(bpy.types.Panel):
     bl_context = 'render'
 
     def draw(self, context):
-        self.layout.operator('hi.hello')
+        self.layout.operator('hello.greet')
 
 
-class OBJECT_OT_HelloButton(bpy.types.Operator):
-    bl_idname = 'hi.hello'
+class OBJECT_OT_Hello(bpy.types.Operator):
+    bl_idname = 'hello.greet'
+    bl_label = 'Greet'
+
+    def execute(self, context):
+        HelloService.greet()
+        return{'FINISHED'}
+
+# Slicer
+
+class SlicerPanel(bpy.types.Panel):
+    bl_idname = 'OBJECT_PT_slicer_panel'
+    bl_label = 'Slicer Panel'
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = 'render'
+
+    def draw(self, context):
+        self.layout.operator('slicer.slice')
+
+
+class OBJECT_OT_Slice(bpy.types.Operator):
+    bl_idname = 'slicer.slice'
     bl_label = 'Say Hello'
 
     def execute(self, context):
-        print('Hello world!')
+        SlicerService.slice(context)
         return{'FINISHED'}
 
+# Printer
 
 class PrinterPanel(bpy.types.Panel):
     bl_idname = 'OBJECT_PT_printer_panel'
@@ -105,6 +134,7 @@ class OBJECT_OT_PrinterHome(bpy.types.Operator):
         PrinterService.home()
         return{'FINISHED'}
 
+# Main
 
 if __name__ == '__main__':
     bpy.utils.register_module(__name__)
