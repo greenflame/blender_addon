@@ -4,6 +4,9 @@ import time
 import serial
 import sys
 import time
+import subprocess
+
+#/Applications/Slic3r.app/Contents/MacOS/slic3r /Users/alexander/Desktop/cube.obj
 
 
 class Config:
@@ -11,7 +14,10 @@ class Config:
     baudrate = 250000
 
     slicer = '/Applications/Slic3r.app/Contents/MacOS/slic3r'
-    temp = '/Users/alexander/Desktop/'
+    tempPath = '/Users/alexander/Desktop/'
+
+    tempMesh = tempPath + 'mesh.obj'
+    tempCode = tempPath + 'mesh.gcode'
 
 class HelloService:
 
@@ -20,8 +26,12 @@ class HelloService:
 
 class SlicerService:
 
-    def slice(context):
-        return context
+    def save():
+        bpy.ops.export_scene.obj(filepath=Config.tempMesh, use_selection=True)
+
+    def slice():
+        res = subprocess.run([Config.slicer, Config.tempMesh], stdout=subprocess.PIPE).stdout.decode('utf-8')
+        print(res)
 
 class PrinterService:
 
@@ -72,15 +82,25 @@ class SlicerPanel(bpy.types.Panel):
     bl_context = 'render'
 
     def draw(self, context):
+        self.layout.operator('slicer.save')
         self.layout.operator('slicer.slice')
+
+
+class OBJECT_OT_Save(bpy.types.Operator):
+    bl_idname = 'slicer.save'
+    bl_label = 'Save'
+
+    def execute(self, context):
+        SlicerService.save()
+        return{'FINISHED'}
 
 
 class OBJECT_OT_Slice(bpy.types.Operator):
     bl_idname = 'slicer.slice'
-    bl_label = 'Say Hello'
+    bl_label = 'Slice'
 
     def execute(self, context):
-        SlicerService.slice(context)
+        SlicerService.slice()
         return{'FINISHED'}
 
 # Printer
