@@ -1,4 +1,7 @@
 import bpy
+import bmesh
+
+import os
 import threading
 import time
 import serial
@@ -8,7 +11,7 @@ import subprocess
 
 
 class Config:
-    port = '/dev/tty.wchusbserialfd120'
+    port = '/dev/tty.wchusbserialfa130'
     baudrate = 250000
 
     slicer = '/Applications/Slic3r.app/Contents/MacOS/slic3r'
@@ -27,9 +30,17 @@ class HelloService:
 class SlicerService:
 
     def save():
-        bpy.ops.export_scene.obj(filepath=Config.tempMesh, use_selection=True)
+        try:
+            os.remove(Config.tempMesh)
+        except:
+            pass
+        bpy.ops.export_scene.obj(filepath=Config.tempMesh, use_selection=True, global_scale=10, use_triangles=True)
 
     def slice():
+        try:
+            os.remove(Config.tempCode)
+        except:
+            pass
         args = [Config.slicer, Config.tempMesh]
         res = subprocess.run(args, stdout=subprocess.PIPE).stdout.decode('utf-8')
 
@@ -75,7 +86,36 @@ class PreviewService:
 
     def generate():
         movements = PreviewService.parseMovements(SlicerService.data)
-        print(movements)
+        #print(movements)
+        
+        me = bpy.data.meshes.new('preview')
+        ob = bpy.data.objects.new('preview', me)
+        
+        scn = bpy.context.scene
+        scn.objects.link(ob)
+        
+        bm = bmesh.new()
+
+        prev_vert = None
+        cur_pos = { 'x': 0, 'y' : 0, 'z' : 0 }
+        
+        for movement in movements:
+            for arg in movement:
+                if arg in ['x', 'y', 'z']:
+                    cur_pos[arg] = movement[arg]
+
+            pos_arr = [cur_pos['x'], cur_pos['y'], cur_pos['z']]
+            cur_vert = bm.verts.new(pos_arr)
+            
+            if 'e' in movement and prev_vert != None:
+                bm.edges.new([prev_vert, cur_vert])
+                
+            prev_vert = cur_vert
+            
+            print(pos_arr)
+            
+        bm.to_mesh(me)
+        bm.free()
 
     def clear():
         return
