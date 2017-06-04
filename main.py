@@ -8,6 +8,7 @@ import serial
 import sys
 import time
 import subprocess
+import random
 
 
 class Config:
@@ -19,7 +20,7 @@ class Config:
 
     tempMesh = tempPath + 'mesh.obj'
     tempCode = tempPath + 'mesh.gcode'
-    
+
     detailedLog = False
 
 class HelloService:
@@ -46,12 +47,12 @@ class SlicerService:
 
         if Config.detailedLog:
             print(res)
-        
+
     def load():
         res_file = open(Config.tempCode, 'r')
         gcode = res_file.read()
         res_file.close()
-        
+
         SlicerService.data = gcode
 
 class PreviewService:
@@ -122,8 +123,14 @@ class PreviewService:
 
 class PrinterService:
 
+    code = None
+    code_ptr = None
+
+    cmd_sent = None
+    cmd_acknowledged = None
+
     def connect():
-        PrinterService.serial = serial.Serial(Config.port, Config.baudrate)
+        PrinterService.serial = serial.Serial(port=Config.port, baudrate=Config.baudrate, timeout=0)
 
     def disconnect():
         PrinterService.serial.close()
@@ -136,7 +143,77 @@ class PrinterService:
             return 'Disconnected'
 
     def home():
-        PrinterService.serial.write('G28\n'.encode('utf-8'))
+        PrinterService.serial.write('G28\n'.encode())
+        # PrinterService.serial.write(';G1 X90.6 Y103.8\n'.encode())
+        # PrinterService.serial.write('G1 X50.6 Y53.8\n'.encode())
+
+    def print_init():
+        PrinterService.code = SlicerService.data.split('\n')
+        PrinterService.code_ptr = 0
+        PrinterService.cmd_sent = 0
+        PrinterService.cmd_acknowledged = 0
+
+        code = ''
+
+        for i in range(100):
+            code += 'G1 X90.6 Y103.8\n'
+            code += 'G1 X50.6 Y53.8\n'
+
+        PrinterService.code = code.split('\n')
+        PrinterService.countdown = 5
+
+    def print():
+
+        # find next command
+        next_cmd = PrinterService.code[PrinterService.code_ptr]
+
+        # while PrinterService.code_ptr < len(PrinterService.code) and next_cmd == None:
+        #     cur_str = PrinterService.code[PrinterService.code_ptr]
+        #     skip = False
+
+        #     if len(cur_str) < 1:
+        #         skip = True
+
+        #     if not skip and cur_str[0] == ';':
+        #         skip = True
+
+        #     PrinterService.code_ptr += 1
+
+        #     if not skip:
+        #         next_cmd = cur_str
+
+        # if next_cmd == None:    # no next commmand, interrupt
+        #     return False
+
+        # read input and count acknowledgements
+        data = PrinterService.serial.read(1000)
+        if len(data) != 0:
+            data_decoded = data.decode()
+            print(data_decoded)
+
+            cur_ack = 0
+
+            for line in data_decoded.split('\n'):
+                if line == 'ok':
+                    cur_ack += 1
+
+            print('current acknowledgements: ' + str(cur_ack))
+            PrinterService.cmd_acknowledged += cur_ack
+            print('ts: ' + str(PrinterService.cmd_sent))
+            print('ta: ' + str(PrinterService.cmd_acknowledged))
+
+        if PrinterService.countdown != 0:
+            print('cntdwn ' + str(PrinterService.countdown))
+            PrinterService.countdown -= 1
+            return True
+
+        if PrinterService.cmd_sent == PrinterService.cmd_acknowledged:
+            PrinterService.serial.write((next_cmd + '\n').encode())
+            print('cmd sent ' + next_cmd)
+            PrinterService.cmd_sent += 1
+            PrinterService.code_ptr += 1
+
+        return True
 
 
 class MagicService:
@@ -264,6 +341,7 @@ class PrinterPanel(bpy.types.Panel):
         self.layout.operator('printer.disconnect')
         self.layout.operator('printer.status')
         self.layout.operator('printer.home')
+        self.layout.operator('printer.print')
 
 
 class OBJECT_OT_PrinterConnect(bpy.types.Operator):
@@ -300,7 +378,39 @@ class OBJECT_OT_PrinterHome(bpy.types.Operator):
     def execute(self, context):
         PrinterService.home()
         return{'FINISHED'}
-    
+
+class OBJECT_OT_PrinterPrint(bpy.types.Operator):
+    bl_idname = 'printer.print'
+    bl_label = 'Printer Print'
+
+    _timer = None
+
+    def modal(self, context, event):
+        if event.type in {'RIGHTMOUSE', 'ESC'}:
+            self.cancel_timer(context)
+            return {'CANCELLED'}
+
+        if event.type == 'TIMER':
+            if not PrinterService.print():
+                print('printing finished')
+                return {'CANCELLED'}
+
+        return {'PASS_THROUGH'}
+
+    def execute(self, context):
+        PrinterService.print_init()
+        self.register_timer(context)
+        return {'RUNNING_MODAL'}
+
+    def register_timer(self, context):
+        wm = context.window_manager
+        self._timer = wm.event_timer_add(1, context.window)
+        wm.modal_handler_add(self)
+
+    def cancel_timer(self, context):
+        wm = context.window_manager
+        wm.event_timer_remove(self._timer)
+
 # Hello
 
 class MagicPanel(bpy.types.Panel):
