@@ -233,27 +233,6 @@ class MagicService:
         PreviewService.generate()
 
         return
-    
-# Hello
-
-class HelloPanel(bpy.types.Panel):
-    bl_idname = 'OBJECT_PT_hello_panel'
-    bl_label = 'Hello Panel'
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
-    bl_context = 'render'
-
-    def draw(self, context):
-        self.layout.operator('hello.greet')
-
-
-class OBJECT_OT_Hello(bpy.types.Operator):
-    bl_idname = 'hello.greet'
-    bl_label = 'Greet'
-
-    def execute(self, context):
-        HelloService.greet()
-        return{'FINISHED'}
 
 # Slicer
 
@@ -264,10 +243,45 @@ class SlicerPanel(bpy.types.Panel):
     bl_region_type = 'WINDOW'
     bl_context = 'render'
 
-    def draw(self, context):
-        self.layout.operator('slicer.save')
-        self.layout.operator('slicer.slice')
-        self.layout.operator('slicer.load')
+    def draw(self, context):        
+        layout = self.layout
+        scn = bpy.context.scene
+        
+        layout.prop(scn, 'SlicerPath')
+        layout.separator()
+        
+        layout.label("Extruder:")
+        layout.prop(scn, 'NozzleDiameter')
+        layout.separator()
+        layout.prop(scn, 'UseRetraction')
+        layout.prop(scn, 'RetractionDistance')
+        layout.prop(scn, 'RetractionSpeed')
+        layout.separator()
+        
+        layout.label("Layer:")
+        layout.prop(scn, 'LayerHeight')
+        layout.separator()
+        layout.prop(scn, 'TopSolidLayers')
+        layout.prop(scn, 'BottomSolidLayers')
+        layout.prop(scn, 'OutlineShells')
+        layout.separator()
+
+        layout.label("Infill:")
+        layout.prop(scn, 'InfillPrecentage')
+        layout.prop(scn, 'FillPattern')
+        layout.separator()
+
+        layout.label("Temperature:")
+        layout.prop(scn, 'ExtruderTemperature')
+        layout.prop(scn, 'BedTemperature')
+        layout.separator()
+        
+        layout.label("Motion:")
+        layout.prop(scn, 'PrintingSpeed')
+        layout.prop(scn, 'AvoidCrossingMovements')
+        layout.separator()
+        
+        layout.operator('slicer.slice')
 
 
 class OBJECT_OT_Save(bpy.types.Operator):
@@ -281,7 +295,7 @@ class OBJECT_OT_Save(bpy.types.Operator):
 
 class OBJECT_OT_Slice(bpy.types.Operator):
     bl_idname = 'slicer.slice'
-    bl_label = 'Slice'
+    bl_label = 'Slice Selected Model'
 
     def execute(self, context):
         SlicerService.slice()
@@ -306,9 +320,24 @@ class PreviewPanel(bpy.types.Panel):
     bl_context = 'render'
 
     def draw(self, context):
-        self.layout.operator('preview.generate')
-        self.layout.operator('preview.clear')
+        layout = self.layout
+        scn = bpy.context.scene
 
+        layout.label("State:")
+        layout.prop(scn, 'PreviewStart')
+        layout.prop(scn, 'PreviewEnd')
+        layout.separator()
+        
+        layout.label("Live Preview:")
+        layout.prop(scn, 'LivePreviewTracking')
+        layout.prop(scn, 'LivePreviewUpdateInterval')
+        layout.separator()
+        
+        row = layout.row(align=True)
+        row.alignment = 'EXPAND'
+        row.operator("preview.generate")
+        row.operator("preview.clear")
+        
 
 class OBJECT_OT_Generate(bpy.types.Operator):
     bl_idname = 'preview.generate'
@@ -337,11 +366,45 @@ class PrinterPanel(bpy.types.Panel):
     bl_context = 'render'
 
     def draw(self, context):
-        self.layout.operator('printer.connect')
-        self.layout.operator('printer.disconnect')
-        self.layout.operator('printer.status')
+        layout = self.layout
+        scn = bpy.context.scene
+
+        layout.label('Connection:')
+        layout.prop(scn, 'SerialPort')
+        layout.prop(scn, 'BaudRate')
+        layout.label('Connection status: ok')        
+        row = layout.row(align=True)
+        row.alignment = 'EXPAND'
+        row.operator("printer.connect")
+        row.operator("printer.disconnect")
+        layout.separator()
+
+        layout.label('Temperature:')
+        
+        row = layout.row(align=True)
+        row.alignment = 'EXPAND'
+        row.prop(scn, 'ExtruderTemperatureAim')
+        row.label('Current: 207°C')
+        
+        row = layout.row(align=True)
+        row.alignment = 'EXPAND'
+        row.prop(scn, 'BedTemperatureAim')
+        row.label('Current: 103°C')
+        
+        layout.separator()
+
+        layout.label('Override Settings:')
+        layout.prop(scn, 'MovementOverride')
+        layout.prop(scn, 'ExtrusionOverride')
+        layout.separator()        
+        
+        layout.label('Printing progress: 36% finished, 22min left')
         self.layout.operator('printer.home')
-        self.layout.operator('printer.print')
+        row = layout.row(align=True)
+        row.alignment = 'EXPAND'
+        row.operator("printer.print")
+        row.operator("printer.pause")
+        row.operator("printer.stop")
 
 
 class OBJECT_OT_PrinterConnect(bpy.types.Operator):
@@ -373,7 +436,23 @@ class OBJECT_OT_PrinterStatus(bpy.types.Operator):
 
 class OBJECT_OT_PrinterHome(bpy.types.Operator):
     bl_idname = 'printer.home'
-    bl_label = 'Printer Home'
+    bl_label = 'Home All Axes'
+
+    def execute(self, context):
+        PrinterService.home()
+        return{'FINISHED'}
+    
+class OBJECT_OT_PrinterPause(bpy.types.Operator):
+    bl_idname = 'printer.pause'
+    bl_label = 'Pause'
+
+    def execute(self, context):
+#        PrinterService.home()
+        return{'FINISHED'}
+
+class OBJECT_OT_PrinterStop(bpy.types.Operator):
+    bl_idname = 'printer.stop'
+    bl_label = 'Stop'
 
     def execute(self, context):
         PrinterService.home()
@@ -381,7 +460,7 @@ class OBJECT_OT_PrinterHome(bpy.types.Operator):
 
 class OBJECT_OT_PrinterPrint(bpy.types.Operator):
     bl_idname = 'printer.print'
-    bl_label = 'Printer Print'
+    bl_label = 'Print'
 
     _timer = None
 
@@ -410,29 +489,208 @@ class OBJECT_OT_PrinterPrint(bpy.types.Operator):
     def cancel_timer(self, context):
         wm = context.window_manager
         wm.event_timer_remove(self._timer)
+    
+# Prop test
 
-# Hello
-
-class MagicPanel(bpy.types.Panel):
-    bl_idname = 'OBJECT_PT_magic_panel'
-    bl_label = 'Magic Panel'
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
-    bl_context = 'render'
-
-    def draw(self, context):
-        self.layout.operator('magic.do_magic')
+class MyAddonProperties(bpy.types.PropertyGroup):
+    my_prop_1 = bpy.props.IntProperty()
+    my_prop_2 = bpy.props.IntProperty()
+    my_prop_3 = bpy.props.IntProperty()
 
 
-class OBJECT_OT_DoMagic(bpy.types.Operator):
-    bl_idname = 'magic.do_magic'
-    bl_label = 'Do Magic'
+bl_info = { 
+    "name":     "Render ISO", 
+    "category": "Render"  # perhaps wrong
+}
+
+class RenderIsoOperator(bpy.types.Operator):
+    ''' An example operator for addon '''
+    bl_idname = "render.render_iso"
+    bl_label  = "Render ISO"
+    bl_options = {'REGISTER'}
+
+    tile_width = bpy.props.IntProperty(
+        name="Tile width",
+        min=10,
+        max=1000
+    )
 
     def execute(self, context):
-        MagicService.do_magic()
-        return{'FINISHED'}
+        obj = context.scene.objects.active
+        # Do the rendering here
+        return {"FINISHED"}
+
+
+class RenderIsoPanel(bpy.types.Panel):
+    bl_idname = "RENDER_PT_render_iso"
+    bl_label = "Render ISO"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "render"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        scene = context.scene
+        layout = self.layout
+        op = layout.operator(RenderIsoOperator.bl_idname)
+        op.tile_width = scene.iso_render.tile_width
+        layout.prop(scene.iso_render, "tile_width")
+
+class IsoRenderSettings(bpy.types.PropertyGroup):
+    tile_width = bpy.props.IntProperty(
+        name="Tile width",
+        min=0,
+        max=1000
+    )
 
 # Main
 
+def initProps():
+    scn = bpy.context.scene
+    
+    # Slicer
+    
+    bpy.types.Scene.SlicerPath = bpy.props.StringProperty(
+        name = "Slicer Path", 
+        description = "Path to your slicer executable")
+    bpy.context.scene['SlicerPath'] = '/Applications/Slic3r.app/Contents/MacOS/slic3r'
+
+    bpy.types.Scene.NozzleDiameter = bpy.props.FloatProperty(
+        name = "Nozzle Diameter", 
+        description = "The diameter of your extruder nozzle, mm")
+    bpy.context.scene['NozzleDiameter'] = 0.4
+
+    bpy.types.Scene.UseRetraction = bpy.props.BoolProperty(
+        name = "Use retraction", 
+        description = "Reverse filament direction at the end of a loop to help prevent stringing")
+    bpy.context.scene['UseRetraction'] = True
+    
+    bpy.types.Scene.RetractionDistance = bpy.props.FloatProperty(
+        name = "Retraction Distance",
+        description = "mm")
+    bpy.context.scene['RetractionDistance'] = 4.0
+
+    bpy.types.Scene.RetractionSpeed = bpy.props.FloatProperty(
+        name = "Retraction Speed",
+        description = "mm/s")
+    bpy.context.scene['RetractionSpeed'] = 30.0
+    
+    bpy.types.Scene.LayerHeight = bpy.props.FloatProperty(
+        name = "Layer Height",
+        description = "mm")
+    bpy.context.scene['LayerHeight'] = 0.4
+    
+    bpy.types.Scene.TopSolidLayers = bpy.props.IntProperty(
+        name = "Top Solid Layers",
+        description = "")
+    bpy.context.scene['TopSolidLayers'] = 3
+    
+    bpy.types.Scene.BottomSolidLayers = bpy.props.IntProperty(
+        name = "Bottom Solid Layers",
+        description = "")
+    bpy.context.scene['BottomSolidLayers'] = 2
+    
+    bpy.types.Scene.OutlineShells = bpy.props.IntProperty(
+        name = "Outline Shells",
+        description = "")
+    bpy.context.scene['OutlineShells'] = 2
+    
+    bpy.types.Scene.InfillPrecentage = bpy.props.IntProperty(
+        name = "Infill Precentage",
+        description = "%")
+    bpy.context.scene['InfillPrecentage'] = 30
+    
+    bpy.types.Scene.FillPattern = bpy.props.EnumProperty(
+        #(identifier, name, description, icon, number)
+        items = [('Triangular', 'Triangular', ""), 
+                 ('Rectlinear', 'Rectlinear', ""),
+                 ('Grid', 'Grid', ""),
+                 ('FastHoneycomb', 'Fast Honeycomb', ""),
+                 ('FullHoneycomb', 'Full Honeycomb', "")],
+        name = "Fill Pattern")
+    scn['FillPattern'] = 'FastHoneycomb'
+
+    bpy.types.Scene.ExtruderTemperature = bpy.props.IntProperty(
+        name = "Extruder Temperature",
+        description = "°C")
+    bpy.context.scene['ExtruderTemperature'] = 210
+    
+    bpy.types.Scene.BedTemperature = bpy.props.IntProperty(
+        name = "Bed Temperature",
+        description = "°C")
+    bpy.context.scene['BedTemperature'] = 110
+    
+    bpy.types.Scene.PrintingSpeed = bpy.props.FloatProperty(
+        name = "PrintingSpeed",
+        description = "mm/s")
+    bpy.context.scene['PrintingSpeed'] = 30.0
+
+    bpy.types.Scene.AvoidCrossingMovements = bpy.props.BoolProperty(
+        name = "Avoid crossing outline for travel movements", 
+        description = "")
+    bpy.context.scene['AvoidCrossingMovements'] = True
+    
+    #  Preview
+    
+    bpy.types.Scene.PreviewStart = bpy.props.FloatProperty(
+        name = "PreviewStart",
+        description = "%")
+    bpy.context.scene['PreviewStart'] = 0.0
+
+    bpy.types.Scene.PreviewEnd = bpy.props.FloatProperty(
+        name = "PreviewEnd",
+        description = "%")
+    bpy.context.scene['PreviewEnd'] = 60.0
+
+    
+    bpy.types.Scene.LivePreviewTracking = bpy.props.BoolProperty(
+        name = "Live Preview Tracking", 
+        description = "")
+    bpy.context.scene['LivePreviewTracking'] = True
+    
+    bpy.types.Scene.LivePreviewUpdateInterval = bpy.props.IntProperty(
+        name = "Update Interval",
+        description = "sec")
+    bpy.context.scene['LivePreviewUpdateInterval'] = 5
+
+    # Printer
+    
+    bpy.types.Scene.SerialPort = bpy.props.EnumProperty(
+        #(identifier, name, description, icon, number)
+        items = [('serial1', '/dev/tty.wchusbserialfa130', ""), 
+                 ('serial2', '/dev/tty.Bluetooth-Incoming-Port', "")],
+        name = "Serial")
+    scn['SerialPort'] = '/dev/tty.wchusbserialfa130'
+
+    bpy.types.Scene.BaudRate = bpy.props.EnumProperty(
+        #(identifier, name, description, icon, number)
+        items = [('br1', '9600', ""), 
+                 ('br2', '115200', ""),
+                 ('br3', '250000', "")],
+        name = "Baud Rate")
+    scn['BaudRate'] = 'br3'
+
+    bpy.types.Scene.ExtruderTemperatureAim = bpy.props.IntProperty(
+        name = "Extruder",
+        description = "sec")
+    bpy.context.scene['ExtruderTemperatureAim'] = 210
+
+    bpy.types.Scene.BedTemperatureAim = bpy.props.IntProperty(
+        name = "Bed",
+        description = "sec")
+    bpy.context.scene['ExtruderTemperatureAim'] = 210
+
+    bpy.types.Scene.MovementOverride = bpy.props.IntProperty(
+        name = "Movement",
+        description = "sec")
+    bpy.context.scene['ExtruderTemperatureAim'] = 90
+
+    bpy.types.Scene.ExtrusionOverride = bpy.props.IntProperty(
+        name = "Extrusion",
+        description = "sec")
+    bpy.context.scene['ExtrusionOverride'] = 110
+
 if __name__ == '__main__':
+    initProps()
     bpy.utils.register_module(__name__)
+    bpy.types.Scene.iso_render = bpy.props.PointerProperty(type=IsoRenderSettings)
